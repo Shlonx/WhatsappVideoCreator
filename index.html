@@ -922,6 +922,8 @@
     var bubble = document.createElement("div");
     bubble.className = "bubble " + (out ? "out" : "in") + (cue.mediaData ? " has-media" : "");
 
+    var inlineVideoEl = null;
+
     if (cue.mediaData){
       var mediaWrap = document.createElement("div");
       mediaWrap.className = "media-wrap";
@@ -930,7 +932,8 @@
         mediaEl = document.createElement("video");
         mediaEl.src = cue.mediaData;
         mediaEl.muted = true;
-        mediaEl.preload = "metadata";
+        mediaEl.playsInline = true;
+        mediaEl.preload = "auto";
         var badge = document.createElement("div");
         badge.className = "play-badge";
         var badgeInner = document.createElement("span");
@@ -938,6 +941,10 @@
         badge.appendChild(badgeInner);
         mediaWrap.appendChild(mediaEl);
         mediaWrap.appendChild(badge);
+        mediaEl.addEventListener("play", function(){ badge.style.display = "none"; });
+        mediaEl.addEventListener("pause", function(){ badge.style.display = ""; });
+        mediaEl.addEventListener("ended", function(){ badge.style.display = ""; });
+        inlineVideoEl = mediaEl;
       } else {
         mediaEl = document.createElement("img");
         mediaEl.src = cue.mediaData;
@@ -976,6 +983,8 @@
       setTimeout(function(){ ticks.textContent = "✓✓"; }, 450);
       setTimeout(function(){ ticks.textContent = "✓✓"; ticks.classList.add("read"); }, 1500);
     }
+
+    return inlineVideoEl;
   }
 
   var lightboxEl = null;
@@ -1049,7 +1058,8 @@
     speed: 1,
     raf: null,
     composeTimer: null,
-    autoSendTimer: null
+    autoSendTimer: null,
+    videoWaitCancel: null
   };
 
   function buildTimeline(){
@@ -1069,7 +1079,13 @@
           (function(c){ tl.push({ t:t, run:function(){ setHeaderTyping(c.sender); showTypingBubble(c.sender); } }); })(cue);
           t += Math.max(200, cue.typingMs || 0);
         }
-        (function(c){ tl.push({ t:t, run:function(){ clearHeaderTyping(); hideTypingBubble(); appendBubble(c); } }); })(cue);
+        if (cue.mediaType === "video"){
+          // Video messages hold the timeline until playback finishes, same
+          // freeze/resume mechanism as the compose-send gate.
+          (function(c){ tl.push({ t:t, gate:true, run:function(){ enterVideoGate(c); } }); })(cue);
+        } else {
+          (function(c){ tl.push({ t:t, run:function(){ clearHeaderTyping(); hideTypingBubble(); appendBubble(c); } }); })(cue);
+        }
       }
     });
     tl.push({ t:t+400, run:function(){} });
@@ -1110,6 +1126,66 @@
     els.recPill.classList.add("awaiting");
     els.recText.textContent = "כותב/ת...";
     startComposeReveal(cue);
+  }
+
+  function enterVideoGate(cue){
+    clearHeaderTyping();
+    hideTypingBubble();
+    var videoEl = appendBubble(cue);
+    pausePlaying();
+    els.playBtn.disabled = true;
+    els.recPill.classList.remove("live");
+    els.recPill.classList.add("awaiting");
+    els.recText.textContent = "מנגן סרטון...";
+    if (!videoEl){ exitVideoGate(); return; }
+    beginVideoWait(videoEl, exitVideoGate);
+  }
+
+  function exitVideoGate(){
+    els.playBtn.disabled = false;
+    els.recPill.classList.remove("awaiting");
+    if (player.isPlaying){ resumePlaying(); }
+  }
+
+  // Holds the timeline/compose flow until the given <video> finishes (or
+  // errors, or a safety timeout elapses so a broken clip can't hang forever).
+  function beginVideoWait(videoEl, onFinish){
+    var settled = false;
+    // Falls back to a flat cap so a broken/undecodable clip can't hang the
+    // simulation forever; re-armed to the real length once known.
+    var safety = setTimeout(done, 20000);
+    function armSafetyFromDuration(){
+      if (isFinite(videoEl.duration) && videoEl.duration > 0){
+        clearTimeout(safety);
+        safety = setTimeout(done, (videoEl.duration * 1000) + 5000);
+      }
+    }
+    function done(){
+      if (settled) return;
+      settled = true;
+      clearTimeout(safety);
+      videoEl.removeEventListener("ended", done);
+      videoEl.removeEventListener("error", done);
+      videoEl.removeEventListener("loadedmetadata", armSafetyFromDuration);
+      player.videoWaitCancel = null;
+      onFinish();
+    }
+    videoEl.addEventListener("ended", done);
+    videoEl.addEventListener("error", done);
+    videoEl.addEventListener("loadedmetadata", armSafetyFromDuration);
+    armSafetyFromDuration();
+    player.videoWaitCancel = function(){
+      if (settled) return;
+      settled = true;
+      clearTimeout(safety);
+      videoEl.removeEventListener("ended", done);
+      videoEl.removeEventListener("error", done);
+      videoEl.removeEventListener("loadedmetadata", armSafetyFromDuration);
+      try{ videoEl.pause(); }catch(e){}
+      player.videoWaitCancel = null;
+    };
+    var playPromise = videoEl.play();
+    if (playPromise && playPromise.catch){ playPromise.catch(done); }
   }
 
   function startComposeReveal(cue){
@@ -1195,12 +1271,21 @@
     player.awaitingSend = false;
     player.pendingCue = null;
     els.sendBtn.classList.remove("active", "pressed");
-    els.recPill.classList.remove("awaiting");
-    els.playBtn.disabled = false;
-    appendBubble(cue);
+    var videoEl = appendBubble(cue);
     resetComposeBar();
-    if (player.isPlaying){
-      resumePlaying();
+    if (videoEl){
+      // Own video messages hold the timeline the same way incoming ones do —
+      // recPill/playBtn stay in the "busy" state already set by the compose gate.
+      els.recText.textContent = "מנגן סרטון...";
+      beginVideoWait(videoEl, function(){
+        els.recPill.classList.remove("awaiting");
+        els.playBtn.disabled = false;
+        if (player.isPlaying){ resumePlaying(); }
+      });
+    } else {
+      els.recPill.classList.remove("awaiting");
+      els.playBtn.disabled = false;
+      if (player.isPlaying){ resumePlaying(); }
     }
   }
 
@@ -1239,6 +1324,7 @@
     player.isPaused = false;
     player.awaitingSend = false;
     player.pendingCue = null;
+    if (player.videoWaitCancel){ player.videoWaitCancel(); }
     if (player.raf) cancelAnimationFrame(player.raf);
     els.playBtn.disabled = false;
     els.playBtn.textContent = "▶ הפעלה";
