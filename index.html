@@ -359,10 +359,10 @@
   .transport select{width:auto;}
 
   .studio.fullscreen{
-    position:fixed; inset:0; z-index:50; background:var(--bg); padding:16px; justify-content:center;
-    min-height:100dvh;
+    position:fixed; inset:0; z-index:50; background:var(--bg); padding:16px; justify-content:flex-start;
+    height:100dvh; overflow-y:auto; -webkit-overflow-scrolling:touch;
   }
-  .studio.fullscreen .phone{width:min(94vw, 380px); height:min(88vh, 800px);}
+  .studio.fullscreen .phone{width:min(94vw, 380px); height:min(74vh, 720px); flex:none;}
   .exit-fs{display:none;}
   .studio.fullscreen .exit-fs{display:inline-flex;}
   .studio.fullscreen .monitor-label, .studio.fullscreen .cue-hint{display:none;}
