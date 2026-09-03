@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>צ'אט מבוים</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#e8e4dc;
+    --panel:#f3f0ea;
+    --panel-2:#ffffff;
+    --border:#d3ccbf;
+    --ink:#221f1b;
+    --ink-muted:#6e6659;
+    --accent:#3b6e63;
+    --accent-ink:#ffffff;
+    --accent-soft:rgba(59,110,99,0.12);
+    --rec:#b8453a;
+    --rec-soft:rgba(184,69,58,0.14);
+    --shadow:0 1px 2px rgba(30,25,15,0.06), 0 8px 24px -12px rgba(30,25,15,0.25);
+
+    --wa-header:#075e54;
+    --wa-header-dark:#054c44;
+    --wa-bg-chat:#e5ddd5;
+    --wa-bubble-in:#ffffff;
+    --wa-bubble-out:#dcf8c6;
+    --wa-tick-gray:#8696a0;
+    --wa-tick-blue:#34b7f1;
+    --wa-text:#111b21;
+    --wa-text-muted:#667781;
+    --wa-inputbar:#f0f0f0;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#17181a;
+      --panel:#1d1f21;
+      --panel-2:#24262a;
+      --border:#34373b;
+      --ink:#edeae3;
+      --ink-muted:#9a968c;
+      --accent:#63a497;
+      --accent-ink:#0e1512;
+      --accent-soft:rgba(99,164,151,0.16);
+      --rec:#e0776b;
+      --rec-soft:rgba(224,119,107,0.16);
+      --shadow:0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.6);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#17181a;
+    --panel:#1d1f21;
+    --panel-2:#24262a;
+    --border:#34373b;
+    --ink:#edeae3;
+    --ink-muted:#9a968c;
+    --accent:#63a497;
+    --accent-ink:#0e1512;
+    --accent-soft:rgba(99,164,151,0.16);
+    --rec:#e0776b;
+    --rec-soft:rgba(224,119,107,0.16);
+    --shadow:0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.6);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{background:var(--bg);}
+  body{
+    margin:0;
+    color:var(--ink);
+    font-family:'Manrope',-apple-system,'Segoe UI',Roboto,sans-serif;
+    direction:rtl;
+    min-height:100vh;
+  }
+  ::selection{background:var(--accent-soft);}
+  h1,h2,h3{text-wrap:balance;}
+
+  .mono{font-family:'IBM Plex Mono',ui-monospace,monospace; font-variant-numeric:tabular-nums;}
+
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px; padding:18px 28px; border-bottom:1px solid var(--border);
+  }
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand .clap{
+    width:34px;height:34px;border-radius:8px;background:var(--accent);
+    color:var(--accent-ink); display:flex; align-items:center; justify-content:center;
+    font-size:17px;
+  }
+  .brand h1{font-size:17px; margin:0; letter-spacing:.01em;}
+  .brand p{margin:0; font-size:12px; color:var(--ink-muted);}
+
+  .layout{
+    display:grid;
+    grid-template-columns: minmax(340px, 460px) 1fr;
+    gap:0;
+    align-items:start;
+  }
+  @media (max-width: 880px){
+    .layout{grid-template-columns:1fr;}
+  }
+
+  /* ---------- Cue sheet (left) ---------- */
+  .sheet{
+    padding:24px 28px 60px;
+    border-left:1px solid var(--border);
+    min-height:100vh;
+  }
+  @media (max-width: 880px){ .sheet{border-left:none; border-top:1px solid var(--border);} }
+
+  .field-row{display:flex; gap:10px; margin-bottom:10px;}
+  .field{display:flex; flex-direction:column; gap:5px; flex:1;}
+  .field label{font-size:11px; color:var(--ink-muted); text-transform:uppercase; letter-spacing:.06em;}
+  input[type=text], input[type=number], textarea, select{
+    font-family:inherit; font-size:14px; color:var(--ink);
+    background:var(--panel-2); border:1px solid var(--border); border-radius:8px;
+    padding:8px 10px; width:100%;
+  }
+  input[type=text]:focus, input[type=number]:focus, textarea:focus, select:focus{
+    outline:2px solid var(--accent); outline-offset:1px; border-color:transparent;
+  }
+  input[type=color]{
+    width:34px; height:34px; padding:2px; border-radius:8px; border:1px solid var(--border); background:var(--panel-2);
+  }
+  .checkline{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-muted);}
+  .checkline input{accent-color:var(--accent);}
+
+  .section-title{
+    font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-muted);
+    margin:26px 0 10px; display:flex; align-items:center; justify-content:space-between;
+  }
+  .section-title:first-child{margin-top:0;}
+
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px;
+  }
+
+  .participant-row{
+    display:flex; align-items:center; gap:8px; padding:8px 0;
+    border-bottom:1px solid var(--border);
+  }
+  .participant-row:last-child{border-bottom:none;}
+  .participant-row input[type=text]{flex:1;}
+  .swatch-btn{
+    width:32px; height:32px; border-radius:8px; border:1px solid var(--border);
+    background:none; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    color:var(--ink-muted); font-size:14px;
+  }
+  .swatch-btn:hover{background:var(--panel-2);}
+  .is-me-badge{
+    font-size:10px; padding:2px 6px; border-radius:99px; background:var(--accent-soft); color:var(--accent);
+    font-weight:700; white-space:nowrap;
+  }
+
+  .btn{
+    font-family:'Manrope',sans-serif; font-weight:700; font-size:13px; cursor:pointer;
+    border-radius:9px; padding:9px 14px; border:1px solid var(--border); background:var(--panel-2); color:var(--ink);
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  .btn:hover{border-color:var(--accent);}
+  .btn.primary{background:var(--accent); color:var(--accent-ink); border-color:var(--accent);}
+  .btn.ghost{background:none;}
+  .btn.small{padding:5px 9px; font-size:12px; border-radius:7px;}
+  .btn.icon{padding:6px 8px;}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+
+  .cue-list{display:flex; flex-direction:column; gap:10px;}
+  .cue{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:12px; padding:12px; box-shadow:var(--shadow);
+  }
+  .cue-head{display:flex; align-items:center; gap:8px; margin-bottom:9px;}
+  .cue-num{
+    font-size:12px; color:var(--ink-muted); min-width:26px;
+  }
+  .cue-sender-dot{width:9px;height:9px;border-radius:50%; flex:none;}
+  .cue-sender-select{flex:1;}
+  .cue-actions{display:flex; gap:4px;}
+  .cue textarea{resize:vertical; min-height:44px;}
+  .cue-meta{display:flex; gap:10px; margin-top:8px; align-items:center; flex-wrap:wrap;}
+  .cue-meta .field{min-width:110px;}
+
+  .cue-media-row{display:flex; align-items:center; gap:8px; margin-top:8px;}
+  .cue-media-preview{
+    display:flex; align-items:center; gap:6px; background:var(--panel); border:1px solid var(--border);
+    border-radius:8px; padding:4px 8px 4px 4px; font-size:11.5px; color:var(--ink-muted); max-width:100%;
+  }
+  .cue-media-preview img{width:28px; height:28px; border-radius:5px; object-fit:cover; flex:none;}
+  .cue-media-preview .media-icon{
+    width:28px; height:28px; border-radius:5px; background:var(--panel-2); flex:none;
+    display:flex; align-items:center; justify-content:center; font-size:13px;
+  }
+  .cue-media-preview .media-name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:140px;}
+
+  .add-cue{width:100%; justify-content:center; margin-top:12px; border-style:dashed;}
+
+  details.io summary{
+    cursor:pointer; font-size:12px; color:var(--ink-muted); margin-top:22px; text-transform:uppercase; letter-spacing:.06em;
+  }
+  details.io textarea{
+    margin-top:10px; height:130px; font-family:'IBM Plex Mono',monospace; font-size:11.5px; direction:ltr; text-align:left;
+  }
+  .io-actions{display:flex; gap:8px; margin-top:8px;}
+
+  .tip{
+    margin-top:20px; font-size:12px; color:var(--ink-muted); line-height:1.6;
+    background:var(--accent-soft); border-radius:10px; padding:10px 12px;
+  }
+
+  /* ---------- Monitor (right) ---------- */
+  .studio{
+    display:flex; flex-direction:column; align-items:center; padding:40px 24px 60px;
+    min-height:100vh; position:sticky; top:0;
+  }
+  .monitor-bezel{
+    background:linear-gradient(180deg, var(--panel-2), var(--panel));
+    border:1px solid var(--border); border-radius:28px; padding:20px;
+    box-shadow:var(--shadow);
+  }
+  .monitor-label{
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:11px; color:var(--ink-muted); padding:0 4px 14px; letter-spacing:.05em;
+  }
+  #clockLabel{direction:ltr;}
+  .rec-pill{
+    display:inline-flex; align-items:center; gap:5px; color:var(--rec); font-weight:700;
+  }
+  .rec-dot{width:7px; height:7px; border-radius:50%; background:var(--rec);}
+  .rec-pill.live .rec-dot{animation:pulse 1.1s ease-in-out infinite;}
+  .rec-pill.awaiting{color:var(--accent);}
+  .rec-pill.awaiting .rec-dot{background:var(--accent); animation:pulse 1.1s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.25;}}
+
+  .phone{
+    width:300px; height:632px; border-radius:36px; background:#000;
+    padding:10px; box-shadow:0 20px 40px -20px rgba(0,0,0,.5);
+  }
+  .phone-screen{
+    width:100%; height:100%; border-radius:26px; overflow:hidden; background:var(--wa-bg-chat);
+    display:flex; flex-direction:column; position:relative; direction:rtl;
+  }
+
+  .statusbar{
+    height:26px; background:var(--wa-header); display:flex; align-items:center; justify-content:space-between;
+    padding:0 16px; color:#fff; font-size:11.5px; font-family:-apple-system,'Segoe UI',Roboto,sans-serif;
+  }
+  .statusbar .icons{display:flex; gap:5px; align-items:center;}
+
+  .wa-header{
+    background:var(--wa-header); color:#fff; display:flex; align-items:center; gap:10px; padding:8px 10px 10px;
+  }
+  .wa-header .back{font-size:18px; line-height:1;}
+  .wa-avatar{
+    width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:13px; font-weight:700; color:#fff; flex:none;
+  }
+  .wa-header-info{flex:1; min-width:0;}
+  .wa-header-info .name{font-size:14.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .wa-header-info .status{font-size:11.5px; color:rgba(255,255,255,.78); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; height:15px;}
+  .wa-header .actions{display:flex; gap:16px; font-size:15px; opacity:.9;}
+
+  .wa-chat{
+    flex:1; overflow-y:auto; padding:10px 8px; display:flex; flex-direction:column; gap:2px;
+    background-image:
+      radial-gradient(circle at 15% 20%, rgba(0,0,0,.02) 0 2px, transparent 2px),
+      radial-gradient(circle at 65% 60%, rgba(0,0,0,.02) 0 2px, transparent 2px),
+      radial-gradient(circle at 40% 85%, rgba(0,0,0,.02) 0 2px, transparent 2px);
+    background-size: 90px 90px;
+  }
+  .wa-chat::-webkit-scrollbar{width:0;}
+
+  .bubble-wrap{display:flex; flex-direction:column; max-width:78%; margin:3px 0;}
+  .bubble-wrap.out{align-self:flex-end;}
+  .bubble-wrap.in{align-self:flex-start;}
+  .sender-name{font-size:11.5px; font-weight:700; padding:0 8px 1px; margin-bottom:-2px;}
+  .bubble{
+    padding:6px 8px 6px 8px; border-radius:8px; font-size:13.6px; line-height:1.35; color:var(--wa-text);
+    position:relative; box-shadow:0 1px 0.5px rgba(0,0,0,.08); word-break:break-word;
+    display:flex; flex-wrap:wrap; align-items:flex-end; column-gap:6px; row-gap:1px;
+  }
+  .bubble.in{background:var(--wa-bubble-in); border-top-right-radius:2px;}
+  .bubble.out{background:var(--wa-bubble-out); border-top-left-radius:2px;}
+  .bubble .msg-text{flex:1 1 auto; min-width:40%;}
+  .bubble .meta{
+    display:flex; align-items:center; gap:3px; direction:ltr; flex:none; margin-inline-start:auto;
+    font-size:10.5px; color:var(--wa-text-muted); white-space:nowrap;
+  }
+  .bubble .meta .ticks{color:var(--wa-tick-gray); font-size:12px; letter-spacing:-2px;}
+  .bubble .meta .ticks.read{color:var(--wa-tick-blue);}
+
+  .bubble.has-media{padding:4px; overflow:hidden;}
+  .bubble.has-media .msg-text{margin-top:4px; padding:0 2px;}
+  .bubble.has-media .meta{margin-top:2px; padding:0 2px 1px;}
+  .bubble .media-wrap{
+    flex:1 1 100%; margin:-4px -4px 0 -4px; cursor:pointer; position:relative;
+    background:rgba(0,0,0,.08); line-height:0;
+  }
+  .bubble .media-wrap img, .bubble .media-wrap video{
+    display:block; width:100%; max-height:260px; object-fit:cover;
+  }
+  .bubble .media-wrap .play-badge{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,.18); pointer-events:none;
+  }
+  .bubble .media-wrap .play-badge span{
+    width:34px; height:34px; border-radius:50%; background:rgba(0,0,0,.5); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:13px; padding-inline-start:2px;
+  }
+
+  .lightbox{
+    position:absolute; inset:0; z-index:6; background:rgba(0,0,0,.94);
+    display:flex; align-items:center; justify-content:center; padding:22px;
+  }
+  .lightbox img, .lightbox video{max-width:100%; max-height:100%; border-radius:4px;}
+  .lightbox .lb-close{
+    position:absolute; top:10px; right:10px; width:30px; height:30px; border-radius:50%;
+    background:rgba(255,255,255,.16); color:#fff; border:none; font-size:15px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; padding:0;
+  }
+
+  .typing-status{color:#8fe6d1;}
+
+  .wa-inputbar{
+    background:var(--wa-inputbar); padding:8px 10px; display:flex; align-items:flex-end; gap:8px;
+  }
+  .wa-inputbar .emoji-btn{align-self:flex-end; padding-bottom:5px;}
+  .wa-inputbar .pill{
+    flex:1; background:#fff; border-radius:18px; padding:8px 14px; font-size:12.5px; line-height:1.35;
+    min-height:16px; max-height:96px; overflow-y:auto; white-space:pre-wrap; word-break:break-word;
+  }
+  .wa-inputbar .pill::-webkit-scrollbar{width:0;}
+  .wa-inputbar .pill #composeText{color:#111b21;}
+  .wa-inputbar .pill #composeText:empty::before{content:"הודעה"; color:#8a8a8a;}
+  .wa-inputbar .mic{
+    width:34px; height:34px; border-radius:50%; background:var(--wa-header); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:14px; flex:none;
+    border:none; cursor:default; padding:0; font-family:inherit; align-self:flex-end;
+  }
+  .wa-inputbar .mic.active{
+    cursor:pointer; box-shadow:0 0 0 0 var(--accent-soft); animation:sendPulse 1.2s ease-in-out infinite;
+    transition:transform .1s ease-out, filter .1s ease-out;
+  }
+  .wa-inputbar .mic.pressed{
+    animation:none; transform:scale(.82); filter:brightness(.82);
+  }
+  @keyframes sendPulse{
+    0%,100%{ box-shadow:0 0 0 0 rgba(59,110,99,.55); }
+    50%{ box-shadow:0 0 0 7px rgba(59,110,99,0); }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .wa-inputbar .mic.active{ animation:none; }
+    .wa-inputbar .mic.pressed{ transform:none; }
+  }
+
+  .transport{
+    display:flex; align-items:center; gap:10px; margin-top:22px; flex-wrap:wrap; justify-content:center;
+  }
+  .transport select{width:auto;}
+
+  .studio.fullscreen{
+    position:fixed; inset:0; z-index:50; background:var(--bg); padding:16px; justify-content:center;
+    min-height:100dvh;
+  }
+  .studio.fullscreen .phone{width:min(94vw, 380px); height:min(88vh, 800px);}
+  .exit-fs{display:none;}
+  .studio.fullscreen .exit-fs{display:inline-flex;}
+  .studio.fullscreen .monitor-label, .studio.fullscreen .cue-hint{display:none;}
+
+  .cue-hint{font-size:11.5px; color:var(--ink-muted); margin-top:10px; text-align:center; max-width:300px;}
+
+  @keyframes bounce{
+    0%,60%,100%{transform:translateY(0); opacity:.5;}
+    30%{transform:translateY(-3px); opacity:1;}
+  }
+  .dot{width:5px; height:5px; border-radius:50%; background:var(--wa-text-muted); display:inline-block; animation:bounce 1.1s infinite;}
+  .bubble.typing{display:inline-flex; align-items:center; gap:4px; padding:10px 12px;}
+  .bubble.typing .dot:nth-child(2){animation-delay:.15s;}
+  .bubble.typing .dot:nth-child(3){animation-delay:.3s;}
+  @media (prefers-reduced-motion: reduce){
+    .dot{animation:none; opacity:.7;}
+    .rec-pill.live .rec-dot{animation:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="clap">🎬</div>
+    <div>
+      <h1>צ'אט מבוים</h1>
+      <p>כתבו את השיחה, הפעילו, צלמו מסך</p>
+    </div>
+  </div>
+  <button class="btn ghost small" id="themeToggle" type="button">מצב תצוגה</button>
+</div>
+
+<div class="layout">
+
+  <!-- ============ LEFT: CUE SHEET ============ -->
+  <section class="sheet">
+
+    <div class="section-title">פרטי השיחה</div>
+    <div class="card">
+      <div class="field-row">
+        <div class="field">
+          <label for="chatName">שם הצ'אט</label>
+          <input type="text" id="chatName" />
+        </div>
+      </div>
+      <label class="checkline">
+        <input type="checkbox" id="isGroup" /> שיחה קבוצתית (יותר מ־2 משתתפים)
+      </label>
+    </div>
+
+    <div class="section-title">משתתפים<span class="mono" id="participantCount" style="font-weight:600;"></span></div>
+    <div class="card" id="participantsCard"></div>
+    <button class="btn small" id="addParticipant" type="button" style="margin-top:8px;">+ הוספת משתתף/ת</button>
+
+    <div class="section-title">
+      רצף ההודעות (cue sheet)
+    </div>
+    <div class="cue-list" id="cueList"></div>
+    <button class="btn add-cue" id="addCue" type="button">+ הוספת שורה לתסריט</button>
+
+    <details class="io">
+      <summary>ייבוא / ייצוא JSON של התרחיש</summary>
+      <textarea id="jsonBox" spellcheck="false"></textarea>
+      <div class="io-actions">
+        <button class="btn small" id="jsonCopy" type="button">העתקה ללוח</button>
+        <button class="btn small" id="jsonLoad" type="button">טעינה מהתיבה</button>
+      </div>
+    </details>
+
+    <p class="tip">
+      התרחיש נשמר אוטומטית בדפדפן הזה בלבד. אם תערכו במחשב ותצלמו בנייד — ייצאו JSON כאן, והדביקו אותו בתיבה הזו כשהעמוד פתוח בנייד (אותו קישור), ואז "טעינה מהתיבה".
+    </p>
+  </section>
+
+  <!-- ============ RIGHT: MONITOR ============ -->
+  <section class="studio" id="studio">
+    <div class="monitor-bezel">
+      <div class="monitor-label">
+        <span class="rec-pill" id="recPill"><span class="rec-dot"></span><span id="recText">מוכן</span></span>
+        <span class="mono" id="clockLabel">00:00 / 00:00</span>
+      </div>
+      <div class="phone">
+        <div class="phone-screen" id="phoneScreen">
+          <div class="statusbar">
+            <span class="mono" id="statusTime">9:41</span>
+            <div class="icons">
+              <span>📶</span><span>📡</span><span>🔋</span>
+            </div>
+          </div>
+          <div class="wa-header">
+            <span class="back">›</span>
+            <div class="wa-avatar" id="headerAvatar"></div>
+            <div class="wa-header-info">
+              <div class="name" id="headerName"></div>
+              <div class="status" id="headerStatus">מקוון</div>
+            </div>
+            <div class="actions"><span>📹</span><span>📞</span><span>⋮</span></div>
+          </div>
+          <div class="wa-chat" id="waChat"></div>
+          <div class="wa-inputbar">
+            <span class="emoji-btn">😊</span>
+            <div class="pill" id="composePill"><span id="composeText"></span></div>
+            <button class="mic" id="sendBtn" type="button" aria-label="שליחת ההודעה">🎤</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="transport">
+      <button class="btn primary" id="playBtn" type="button">▶ הפעלה</button>
+      <button class="btn" id="restartBtn" type="button">⟲ מהתחלה</button>
+      <select id="speedSelect" class="mono">
+        <option value="0.5">מהירות 0.5×</option>
+        <option value="1" selected>מהירות 1×</option>
+        <option value="1.5">מהירות 1.5×</option>
+        <option value="2">מהירות 2×</option>
+      </select>
+      <button class="btn" id="fsBtn" type="button">⛶ מסך מלא לצילום</button>
+      <button class="btn primary exit-fs" id="exitFsBtn" type="button">✕ יציאה ממסך מלא</button>
+    </div>
+    <p class="cue-hint">כשמגיע תור הודעה שלכם, הטקסט "נכתב" בשורת ההודעה למטה, ואז נשלח לבד ברגע שההקלדה מסתיימת. במסך מלא: פתחו הקלטת מסך במכשיר עצמו, ואז לחצו הפעלה.</p>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var STORAGE_KEY = "staged-chat-scenario-v1";
+
+  var defaultState = {
+    chatName: "טיול שבת",
+    isGroup: true,
+    participants: [
+      { id:"me", name:"אני", isMe:true, color:"#3b6e63", gender:"m" },
+      { id:"p1", name:"דנה", isMe:false, color:"#b8453a", gender:"f" },
+      { id:"p2", name:"עידו", isMe:false, color:"#7a6b4f", gender:"m" }
+    ],
+    cues: [
+      { sender:"p1", text:"חבר׳ה מי בא לטיול בשבת בבוקר?", showTyping:true, typingMs:1400, pauseBefore:400 },
+      { sender:"me", text:"אני בפנים! באיזו שעה יוצאים?", showTyping:true, typingMs:1100, pauseBefore:700 },
+      { sender:"p2", text:"מציע 7:00 לפני שיהיה חם מדי", showTyping:true, typingMs:1600, pauseBefore:900 },
+      { sender:"p1", text:"מושלם, נפגשים בחניה של השמורה", showTyping:true, typingMs:1300, pauseBefore:500 },
+      { sender:"me", text:"👍 מגניב, מביא קפה לכולם", showTyping:true, typingMs:800, pauseBefore:700 }
+    ]
+  };
+
+  var state = loadState();
+  var idCounter = 1;
+
+  function uid(prefix){ idCounter++; return prefix + "_" + Date.now().toString(36) + idCounter; }
+
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    }catch(e){}
+    return JSON.parse(JSON.stringify(defaultState));
+  }
+  function saveState(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+  }
+
+  function byId(id){ return state.participants.find(function(p){ return p.id === id; }); }
+  function meParticipant(){ return state.participants.find(function(p){ return p.isMe; }); }
+
+  // ---------------- Rendering: editor ----------------
+
+  var els = {
+    chatName: document.getElementById("chatName"),
+    isGroup: document.getElementById("isGroup"),
+    participantsCard: document.getElementById("participantsCard"),
+    participantCount: document.getElementById("participantCount"),
+    addParticipant: document.getElementById("addParticipant"),
+    cueList: document.getElementById("cueList"),
+    addCue: document.getElementById("addCue"),
+    jsonBox: document.getElementById("jsonBox"),
+    jsonCopy: document.getElementById("jsonCopy"),
+    jsonLoad: document.getElementById("jsonLoad"),
+    headerAvatar: document.getElementById("headerAvatar"),
+    headerName: document.getElementById("headerName"),
+    headerStatus: document.getElementById("headerStatus"),
+    waChat: document.getElementById("waChat"),
+    phoneScreen: document.getElementById("phoneScreen"),
+    composeText: document.getElementById("composeText"),
+    composePill: document.getElementById("composePill"),
+    sendBtn: document.getElementById("sendBtn"),
+    playBtn: document.getElementById("playBtn"),
+    restartBtn: document.getElementById("restartBtn"),
+    speedSelect: document.getElementById("speedSelect"),
+    fsBtn: document.getElementById("fsBtn"),
+    exitFsBtn: document.getElementById("exitFsBtn"),
+    studio: document.getElementById("studio"),
+    clockLabel: document.getElementById("clockLabel"),
+    recPill: document.getElementById("recPill"),
+    recText: document.getElementById("recText"),
+    statusTime: document.getElementById("statusTime"),
+    themeToggle: document.getElementById("themeToggle")
+  };
+
+  function initial(name){ return (name || "?").trim().charAt(0).toUpperCase(); }
+
+  function renderParticipants(){
+    els.chatName.value = state.chatName;
+    els.isGroup.checked = state.isGroup;
+    els.participantCount.textContent = " (" + state.participants.length + ")";
+    els.participantsCard.innerHTML = "";
+    state.participants.forEach(function(p){
+      var row = document.createElement("div");
+      row.className = "participant-row";
+
+      var color = document.createElement("input");
+      color.type = "color"; color.value = p.color;
+      color.oninput = function(){ p.color = color.value; syncLight(); };
+
+      var name = document.createElement("input");
+      name.type = "text"; name.value = p.name; name.placeholder = "שם";
+      name.oninput = function(){ p.name = name.value; syncLight(); };
+
+      var genderBtn = document.createElement("button");
+      genderBtn.className = "swatch-btn"; genderBtn.type = "button";
+      genderBtn.title = "מגדר (לניסוח 'מקליד/ה')";
+      genderBtn.textContent = p.gender === "f" ? "♀" : "♂";
+      genderBtn.onclick = function(){ p.gender = p.gender === "f" ? "m" : "f"; genderBtn.textContent = p.gender === "f" ? "♀" : "♂"; syncLight(); };
+
+      row.appendChild(color);
+      row.appendChild(name);
+      row.appendChild(genderBtn);
+
+      if (p.isMe){
+        var badge = document.createElement("span");
+        badge.className = "is-me-badge"; badge.textContent = "אני";
+        row.appendChild(badge);
+      } else {
+        var makeMe = document.createElement("button");
+        makeMe.className = "swatch-btn"; makeMe.type = "button"; makeMe.title = "הפוך למשתתף 'אני'";
+        makeMe.textContent = "★";
+        makeMe.onclick = function(){
+          state.participants.forEach(function(x){ x.isMe = false; });
+          p.isMe = true; sync();
+        };
+        row.appendChild(makeMe);
+
+        var del = document.createElement("button");
+        del.className = "swatch-btn"; del.type = "button"; del.title = "הסרה";
+        del.textContent = "✕";
+        del.disabled = state.participants.length <= 2;
+        del.onclick = function(){
+          state.participants = state.participants.filter(function(x){ return x.id !== p.id; });
+          state.cues = state.cues.filter(function(c){ return c.sender !== p.id; });
+          sync();
+        };
+        row.appendChild(del);
+      }
+      els.participantsCard.appendChild(row);
+    });
+  }
+
+  function renderCueList(){
+    els.cueList.innerHTML = "";
+    state.cues.forEach(function(cue, idx){
+      var wrap = document.createElement("div");
+      wrap.className = "cue";
+
+      var head = document.createElement("div");
+      head.className = "cue-head";
+
+      var num = document.createElement("span");
+      num.className = "cue-num mono";
+      num.textContent = String(idx+1).padStart(2,"0");
+
+      var dot = document.createElement("span");
+      dot.className = "cue-sender-dot";
+      var sender = byId(cue.sender) || state.participants[0];
+      dot.style.background = sender.color;
+
+      var select = document.createElement("select");
+      select.className = "cue-sender-select";
+      state.participants.forEach(function(p){
+        var opt = document.createElement("option");
+        opt.value = p.id; opt.textContent = p.isMe ? (p.name + " (אני)") : p.name;
+        if (p.id === cue.sender) opt.selected = true;
+        select.appendChild(opt);
+      });
+      select.onchange = function(){ cue.sender = select.value; renderCueList(); saveState(); };
+
+      var actions = document.createElement("div");
+      actions.className = "cue-actions";
+      var up = mkIconBtn("↑", idx===0, function(){ moveCue(idx,-1); });
+      var down = mkIconBtn("↓", idx===state.cues.length-1, function(){ moveCue(idx,1); });
+      var del = mkIconBtn("✕", false, function(){ state.cues.splice(idx,1); sync(); });
+      actions.appendChild(up); actions.appendChild(down); actions.appendChild(del);
+
+      head.appendChild(num); head.appendChild(dot); head.appendChild(select); head.appendChild(actions);
+
+      var text = document.createElement("textarea");
+      text.value = cue.text; text.rows = 1;
+      text.placeholder = cue.mediaData ? "כיתוב לתמונה/וידאו (לא חובה)..." : "טקסט ההודעה...";
+      text.oninput = function(){ cue.text = text.value; saveState(); };
+
+      var mediaRow = document.createElement("div");
+      mediaRow.className = "cue-media-row";
+
+      var fileInput = document.createElement("input");
+      fileInput.type = "file";
+      fileInput.accept = "image/*,video/*";
+      fileInput.style.display = "none";
+      fileInput.onchange = function(){
+        var file = fileInput.files && fileInput.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(){
+          cue.mediaData = reader.result;
+          cue.mediaType = file.type.indexOf("video") === 0 ? "video" : "image";
+          cue.mediaName = file.name;
+          renderCueList();
+          saveState();
+        };
+        reader.readAsDataURL(file);
+      };
+
+      var attachBtn = document.createElement("button");
+      attachBtn.className = "btn small"; attachBtn.type = "button";
+      attachBtn.textContent = "📎 צירוף תמונה/וידאו";
+      attachBtn.onclick = function(){ fileInput.click(); };
+
+      mediaRow.appendChild(attachBtn);
+      mediaRow.appendChild(fileInput);
+
+      if (cue.mediaData){
+        var preview = document.createElement("div");
+        preview.className = "cue-media-preview";
+        if (cue.mediaType === "video"){
+          var icon = document.createElement("div");
+          icon.className = "media-icon"; icon.textContent = "🎥";
+          preview.appendChild(icon);
+        } else {
+          var thumb = document.createElement("img");
+          thumb.src = cue.mediaData;
+          preview.appendChild(thumb);
+        }
+        var nameSpan = document.createElement("span");
+        nameSpan.className = "media-name";
+        nameSpan.textContent = cue.mediaName || (cue.mediaType === "video" ? "וידאו" : "תמונה");
+        preview.appendChild(nameSpan);
+        var removeMedia = mkIconBtn("✕", false, function(){
+          delete cue.mediaData; delete cue.mediaType; delete cue.mediaName;
+          renderCueList(); saveState();
+        });
+        preview.appendChild(removeMedia);
+        mediaRow.appendChild(preview);
+      }
+
+      var meta = document.createElement("div");
+      meta.className = "cue-meta";
+
+      meta.appendChild(numberField("השהיה לפני (מ״ש)", cue.pauseBefore, function(v){ cue.pauseBefore = v; saveState(); }));
+      meta.appendChild(numberField("זמן הקלדה (מ״ש)", cue.typingMs, function(v){ cue.typingMs = v; saveState(); }));
+
+      var typingCheck = document.createElement("label");
+      typingCheck.className = "checkline";
+      var cb = document.createElement("input");
+      cb.type = "checkbox"; cb.checked = cue.showTyping;
+      cb.onchange = function(){ cue.showTyping = cb.checked; saveState(); };
+      typingCheck.appendChild(cb);
+      typingCheck.appendChild(document.createTextNode(" הצגת ‘מקליד’"));
+      meta.appendChild(typingCheck);
+
+      wrap.appendChild(head);
+      wrap.appendChild(text);
+      wrap.appendChild(mediaRow);
+      wrap.appendChild(meta);
+      els.cueList.appendChild(wrap);
+    });
+  }
+
+  function mkIconBtn(label, disabled, onClick){
+    var b = document.createElement("button");
+    b.className = "btn small icon"; b.type = "button"; b.textContent = label;
+    b.disabled = disabled; b.onclick = onClick;
+    return b;
+  }
+  function numberField(label, value, onChange){
+    var f = document.createElement("div"); f.className = "field";
+    var l = document.createElement("label"); l.textContent = label;
+    var i = document.createElement("input"); i.type = "number"; i.min = "0"; i.step = "100"; i.value = value;
+    i.className = "mono";
+    i.oninput = function(){ onChange(parseInt(i.value,10) || 0); };
+    f.appendChild(l); f.appendChild(i);
+    return f;
+  }
+
+  function moveCue(idx, dir){
+    var t = idx+dir;
+    if (t<0 || t>=state.cues.length) return;
+    var tmp = state.cues[idx]; state.cues[idx] = state.cues[t]; state.cues[t] = tmp;
+    sync();
+  }
+
+  function sync(){
+    // keep isGroup consistent with participant count
+    if (state.participants.length <= 2) state.isGroup = false;
+    saveState();
+    renderParticipants();
+    renderCueList();
+    renderPhoneIdle();
+    syncJsonBox();
+  }
+
+  // For edits to a field that's already on screen (name/color/gender): update
+  // dependent views WITHOUT rebuilding the participants list itself, so the
+  // input the user is actively typing/picking in never loses focus.
+  function syncLight(){
+    saveState();
+    renderCueList();
+    renderPhoneIdle();
+    syncJsonBox();
+  }
+
+  els.chatName.oninput = function(){ state.chatName = els.chatName.value; saveState(); renderPhoneIdle(); };
+  els.isGroup.onchange = function(){ state.isGroup = els.isGroup.checked; saveState(); renderPhoneIdle(); };
+  els.addParticipant.onclick = function(){
+    if (state.participants.length >= 7) return;
+    var palette = ["#3b6e63","#b8453a","#7a6b4f","#4d6e9c","#8a5a99","#a08a2c"];
+    var color = palette[state.participants.length % palette.length];
+    state.participants.push({ id: uid("p"), name:"משתתף חדש", isMe:false, color:color, gender:"m" });
+    state.isGroup = state.participants.length > 2 ? true : state.isGroup;
+    sync();
+  };
+  els.addCue.onclick = function(){
+    var last = state.cues[state.cues.length-1];
+    var others = state.participants.filter(function(p){ return !last || p.id !== last.sender; });
+    var next = (others[0] || state.participants[0]);
+    state.cues.push({ sender: next.id, text:"", showTyping:true, typingMs:1200, pauseBefore:600 });
+    sync();
+  };
+
+  function syncJsonBox(){
+    els.jsonBox.value = JSON.stringify(state, null, 2);
+  }
+  els.jsonCopy.onclick = function(){
+    syncJsonBox();
+    els.jsonBox.select();
+    try{ navigator.clipboard.writeText(els.jsonBox.value); }catch(e){}
+  };
+  els.jsonLoad.onclick = function(){
+    try{
+      var parsed = JSON.parse(els.jsonBox.value);
+      if (!parsed.participants || !parsed.cues) throw new Error("invalid");
+      state = parsed;
+      sync();
+    }catch(e){
+      alert("JSON לא תקין. בדקו את הפורמט ונסו שוב.");
+    }
+  };
+
+  // ---------------- Rendering: phone / monitor ----------------
+
+  function renderPhoneIdle(){
+    var me = meParticipant();
+    var others = state.participants.filter(function(p){ return !p.isMe; });
+    els.headerName.textContent = state.isGroup ? state.chatName : (others[0] ? others[0].name : state.chatName);
+    var avatarSrc = state.isGroup ? state.chatName : (others[0] ? others[0].name : "?");
+    els.headerAvatar.textContent = initial(avatarSrc);
+    els.headerAvatar.style.background = state.isGroup ? "#54656f" : (others[0] ? others[0].color : "#54656f");
+    els.headerStatus.textContent = state.isGroup
+      ? others.map(function(p){ return p.name; }).join(", ")
+      : "מקוון";
+    els.headerStatus.classList.remove("typing-status");
+    els.waChat.innerHTML = "";
+    typingBubbleEl = null;
+    closeLightbox();
+    resetComposeBar();
+  }
+
+  function resetComposeBar(){
+    if (player.composeTimer){ clearTimeout(player.composeTimer); player.composeTimer = null; }
+    if (player.autoSendTimer){ clearTimeout(player.autoSendTimer); player.autoSendTimer = null; }
+    els.composeText.textContent = "";
+    els.composePill.scrollTop = 0;
+    els.sendBtn.textContent = "🎤";
+    els.sendBtn.classList.remove("active", "pressed");
+  }
+
+  function setHeaderTyping(senderId){
+    var p = byId(senderId);
+    if (!p){ return; }
+    var verb = p.gender === "f" ? "מקלידה" : "מקליד";
+    els.headerStatus.textContent = (state.isGroup ? p.name + " " : "") + verb + "...";
+    els.headerStatus.classList.add("typing-status");
+  }
+  function clearHeaderTyping(){
+    renderPhoneIdle_statusOnly();
+  }
+  function renderPhoneIdle_statusOnly(){
+    var others = state.participants.filter(function(p){ return !p.isMe; });
+    els.headerStatus.textContent = state.isGroup
+      ? others.map(function(p){ return p.name; }).join(", ")
+      : "מקוון";
+    els.headerStatus.classList.remove("typing-status");
+  }
+
+  var typingBubbleEl = null;
+
+  function showTypingBubble(senderId){
+    hideTypingBubble();
+    var sender = byId(senderId);
+    if (!sender || sender.isMe) return;
+
+    var wrap = document.createElement("div");
+    wrap.className = "bubble-wrap in";
+
+    if (state.isGroup){
+      var nameEl = document.createElement("div");
+      nameEl.className = "sender-name";
+      nameEl.style.color = sender.color;
+      nameEl.textContent = sender.name;
+      wrap.appendChild(nameEl);
+    }
+
+    var bubble = document.createElement("div");
+    bubble.className = "bubble in typing";
+    for (var i = 0; i < 3; i++){
+      var dot = document.createElement("span");
+      dot.className = "dot";
+      bubble.appendChild(dot);
+    }
+    wrap.appendChild(bubble);
+    els.waChat.appendChild(wrap);
+    els.waChat.scrollTop = els.waChat.scrollHeight;
+    typingBubbleEl = wrap;
+  }
+
+  function hideTypingBubble(){
+    if (typingBubbleEl && typingBubbleEl.parentNode){
+      typingBubbleEl.parentNode.removeChild(typingBubbleEl);
+    }
+    typingBubbleEl = null;
+  }
+
+  function appendBubble(cue){
+    var sender = byId(cue.sender);
+    var out = sender.isMe;
+    var wrap = document.createElement("div");
+    wrap.className = "bubble-wrap " + (out ? "out" : "in");
+
+    if (state.isGroup && !out){
+      var nameEl = document.createElement("div");
+      nameEl.className = "sender-name";
+      nameEl.style.color = sender.color;
+      nameEl.textContent = sender.name;
+      wrap.appendChild(nameEl);
+    }
+
+    var bubble = document.createElement("div");
+    bubble.className = "bubble " + (out ? "out" : "in") + (cue.mediaData ? " has-media" : "");
+
+    if (cue.mediaData){
+      var mediaWrap = document.createElement("div");
+      mediaWrap.className = "media-wrap";
+      var mediaEl;
+      if (cue.mediaType === "video"){
+        mediaEl = document.createElement("video");
+        mediaEl.src = cue.mediaData;
+        mediaEl.muted = true;
+        mediaEl.preload = "metadata";
+        var badge = document.createElement("div");
+        badge.className = "play-badge";
+        var badgeInner = document.createElement("span");
+        badgeInner.textContent = "▶";
+        badge.appendChild(badgeInner);
+        mediaWrap.appendChild(mediaEl);
+        mediaWrap.appendChild(badge);
+      } else {
+        mediaEl = document.createElement("img");
+        mediaEl.src = cue.mediaData;
+        mediaEl.alt = cue.mediaName || "";
+        mediaWrap.appendChild(mediaEl);
+      }
+      mediaWrap.onclick = function(){ openLightbox(cue); };
+      bubble.appendChild(mediaWrap);
+    }
+
+    if (cue.text){
+      var textNode = document.createElement("span");
+      textNode.className = "msg-text";
+      textNode.textContent = cue.text;
+      bubble.appendChild(textNode);
+    }
+
+    var meta = document.createElement("span");
+    meta.className = "meta";
+    var time = document.createElement("span");
+    time.textContent = nowHHMM();
+    meta.appendChild(time);
+    var ticks;
+    if (out){
+      ticks = document.createElement("span");
+      ticks.className = "ticks";
+      ticks.textContent = "✓";
+      meta.appendChild(ticks);
+    }
+    bubble.appendChild(meta);
+    wrap.appendChild(bubble);
+    els.waChat.appendChild(wrap);
+    els.waChat.scrollTop = els.waChat.scrollHeight;
+
+    if (out && ticks){
+      setTimeout(function(){ ticks.textContent = "✓✓"; }, 450);
+      setTimeout(function(){ ticks.textContent = "✓✓"; ticks.classList.add("read"); }, 1500);
+    }
+  }
+
+  var lightboxEl = null;
+
+  function openLightbox(cue){
+    closeLightbox();
+    var overlay = document.createElement("div");
+    overlay.className = "lightbox";
+    overlay.onclick = function(e){ if (e.target === overlay) closeLightbox(); };
+
+    var closeBtn = document.createElement("button");
+    closeBtn.className = "lb-close";
+    closeBtn.type = "button";
+    closeBtn.textContent = "✕";
+    closeBtn.setAttribute("aria-label", "סגירה");
+    closeBtn.onclick = function(){ closeLightbox(); };
+    overlay.appendChild(closeBtn);
+
+    var media;
+    if (cue.mediaType === "video"){
+      media = document.createElement("video");
+      media.src = cue.mediaData;
+      media.controls = true;
+      media.autoplay = true;
+      media.playsInline = true;
+    } else {
+      media = document.createElement("img");
+      media.src = cue.mediaData;
+      media.alt = cue.mediaName || "";
+    }
+    overlay.appendChild(media);
+
+    els.phoneScreen.appendChild(overlay);
+    lightboxEl = overlay;
+  }
+
+  function closeLightbox(){
+    if (lightboxEl && lightboxEl.parentNode){
+      var vid = lightboxEl.querySelector("video");
+      if (vid){ vid.pause(); }
+      lightboxEl.parentNode.removeChild(lightboxEl);
+    }
+    lightboxEl = null;
+  }
+
+  function nowHHMM(){
+    var d = new Date();
+    var h = d.getHours().toString().padStart(2,"0");
+    var m = d.getMinutes().toString().padStart(2,"0");
+    return h+":"+m;
+  }
+
+  function tickStatusClock(){
+    els.statusTime.textContent = nowHHMM();
+  }
+  tickStatusClock();
+  setInterval(tickStatusClock, 15000);
+
+  // ---------------- Playback engine ----------------
+
+  var player = {
+    timeline: [],
+    total: 0,
+    startPerf: 0,
+    elapsedAtPause: 0,
+    isPlaying: false,
+    isPaused: false,
+    awaitingSend: false,
+    pendingCue: null,
+    execIdx: 0,
+    speed: 1,
+    raf: null,
+    composeTimer: null,
+    autoSendTimer: null
+  };
+
+  function buildTimeline(){
+    var t = 0;
+    var tl = [];
+    state.cues.forEach(function(cue){
+      if (!cue.text && !cue.mediaData) return;
+      t += Math.max(0, cue.pauseBefore || 0);
+      var sender = byId(cue.sender);
+      if (sender && sender.isMe){
+        // Own messages wait for a manual tap on the send button instead of
+        // auto-posting — the typing time still budgets how long the text
+        // takes to appear in the compose bar, but the clock freezes there.
+        (function(c){ tl.push({ t:t, gate:true, run:function(){ enterComposeGate(c); } }); })(cue);
+      } else {
+        if (cue.showTyping){
+          (function(c){ tl.push({ t:t, run:function(){ setHeaderTyping(c.sender); showTypingBubble(c.sender); } }); })(cue);
+          t += Math.max(200, cue.typingMs || 0);
+        }
+        (function(c){ tl.push({ t:t, run:function(){ clearHeaderTyping(); hideTypingBubble(); appendBubble(c); } }); })(cue);
+      }
+    });
+    tl.push({ t:t+400, run:function(){} });
+    player.timeline = tl;
+    player.total = t+400;
+  }
+
+  function fmtSec(ms){
+    var s = Math.max(0, Math.round(ms/1000));
+    var m = Math.floor(s/60); var r = s%60;
+    return m+":"+String(r).padStart(2,"0");
+  }
+
+  function frame(){
+    if (!player.isPlaying || player.isPaused) return;
+    var elapsed = (performance.now() - player.startPerf) * player.speed;
+    while (player.execIdx < player.timeline.length && player.timeline[player.execIdx].t <= elapsed){
+      var ev = player.timeline[player.execIdx];
+      player.execIdx++;
+      ev.run();
+      if (ev.gate){
+        // Clock freezes here until sendPendingMeMessage() resumes it.
+        return;
+      }
+    }
+    els.clockLabel.textContent = fmtSec(Math.min(elapsed, player.total)) + " / " + fmtSec(player.total);
+    if (player.execIdx >= player.timeline.length){
+      stopPlaying(true);
+      return;
+    }
+    player.raf = requestAnimationFrame(frame);
+  }
+
+  function enterComposeGate(cue){
+    pausePlaying();
+    els.playBtn.disabled = true;
+    els.recPill.classList.remove("live");
+    els.recPill.classList.add("awaiting");
+    els.recText.textContent = "כותב/ת...";
+    startComposeReveal(cue);
+  }
+
+  function startComposeReveal(cue){
+    var text = cue.text || "";
+    els.sendBtn.textContent = "➤";
+    if (!cue.showTyping || !text.length){
+      els.composeText.textContent = text;
+      enterAwaitingSend(cue);
+      return;
+    }
+    // 1.6x slower than the raw typingMs budget, with a human-ish per-key jitter.
+    var duration = Math.max(300, cue.typingMs || 1200) * 1.6;
+    var baseStep = Math.max(40, (duration / text.length) / (player.speed || 1));
+    var i = 0;
+    function revealStep(){
+      i++;
+      els.composeText.textContent = text.slice(0, i);
+      els.composePill.scrollTop = els.composePill.scrollHeight;
+      playTypeClick();
+      if (i < text.length){
+        var jitter = 0.7 + Math.random() * 0.6;
+        player.composeTimer = setTimeout(revealStep, baseStep * jitter);
+      } else {
+        player.composeTimer = null;
+        enterAwaitingSend(cue);
+      }
+    }
+    revealStep();
+  }
+
+  // ---- Synthesized typing clicks (no external audio assets needed) ----
+  var audioCtx = null;
+  function ensureAudio(){
+    if (!audioCtx){
+      try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ audioCtx = null; }
+    }
+    if (audioCtx && audioCtx.state === "suspended"){ audioCtx.resume(); }
+  }
+  function playTypeClick(){
+    if (!audioCtx) return;
+    try{
+      var t0 = audioCtx.currentTime;
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = "square";
+      osc.frequency.setValueAtTime(1000 + Math.random() * 500, t0);
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.05, t0 + 0.003);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.028);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(t0);
+      osc.stop(t0 + 0.03);
+    }catch(e){}
+  }
+
+  function enterAwaitingSend(cue){
+    player.awaitingSend = true;
+    player.pendingCue = cue;
+    els.sendBtn.classList.add("active");
+    els.recText.textContent = "שולח...";
+    // Simulate the tap on the send button automatically — the text sits
+    // finished for a beat (as if re-read once) before the "press".
+    var pauseBeforeTap = 380 / (player.speed || 1);
+    player.autoSendTimer = setTimeout(function(){
+      player.autoSendTimer = null;
+      simulateSendTap();
+    }, pauseBeforeTap);
+  }
+
+  function simulateSendTap(){
+    els.sendBtn.classList.add("pressed");
+    setTimeout(function(){
+      els.sendBtn.classList.remove("pressed");
+      sendPendingMeMessage();
+    }, 130);
+  }
+
+  function sendPendingMeMessage(){
+    if (!player.awaitingSend || !player.pendingCue) return;
+    if (player.autoSendTimer){ clearTimeout(player.autoSendTimer); player.autoSendTimer = null; }
+    var cue = player.pendingCue;
+    player.awaitingSend = false;
+    player.pendingCue = null;
+    els.sendBtn.classList.remove("active", "pressed");
+    els.recPill.classList.remove("awaiting");
+    els.playBtn.disabled = false;
+    appendBubble(cue);
+    resetComposeBar();
+    if (player.isPlaying){
+      resumePlaying();
+    }
+  }
+
+  function startPlaying(){
+    ensureAudio();
+    renderPhoneIdle();
+    buildTimeline();
+    player.speed = parseFloat(els.speedSelect.value) || 1;
+    player.execIdx = 0;
+    player.isPlaying = true;
+    player.isPaused = false;
+    player.startPerf = performance.now();
+    els.playBtn.textContent = "⏸ השהייה";
+    els.recPill.classList.add("live");
+    els.recText.textContent = "מתנגן";
+    frame();
+  }
+  function pausePlaying(){
+    player.isPaused = true;
+    player.elapsedAtPause = (performance.now() - player.startPerf) * player.speed;
+    if (player.raf) cancelAnimationFrame(player.raf);
+    els.playBtn.textContent = "▶ המשך";
+    els.recPill.classList.remove("live");
+    els.recText.textContent = "מושהה";
+  }
+  function resumePlaying(){
+    player.isPaused = false;
+    player.startPerf = performance.now() - (player.elapsedAtPause / player.speed);
+    els.playBtn.textContent = "⏸ השהייה";
+    els.recPill.classList.add("live");
+    els.recText.textContent = "מתנגן";
+    frame();
+  }
+  function stopPlaying(finished){
+    player.isPlaying = false;
+    player.isPaused = false;
+    player.awaitingSend = false;
+    player.pendingCue = null;
+    if (player.raf) cancelAnimationFrame(player.raf);
+    els.playBtn.disabled = false;
+    els.playBtn.textContent = "▶ הפעלה";
+    els.recPill.classList.remove("live", "awaiting");
+    els.recText.textContent = finished ? "הסתיים" : "מוכן";
+    clearHeaderTyping();
+  }
+
+  els.playBtn.onclick = function(){
+    if (player.awaitingSend) return;
+    if (!player.isPlaying){ startPlaying(); }
+    else if (!player.isPaused){ pausePlaying(); }
+    else { resumePlaying(); }
+  };
+  els.sendBtn.onclick = function(){ sendPendingMeMessage(); };
+  els.restartBtn.onclick = function(){ stopPlaying(false); renderPhoneIdle(); els.clockLabel.textContent = "0:00 / 0:00"; };
+  els.speedSelect.onchange = function(){
+    if (player.isPlaying && !player.isPaused){
+      var elapsed = (performance.now() - player.startPerf) * player.speed;
+      player.speed = parseFloat(els.speedSelect.value) || 1;
+      player.startPerf = performance.now() - (elapsed/player.speed);
+    } else {
+      player.speed = parseFloat(els.speedSelect.value) || 1;
+    }
+  };
+
+  els.fsBtn.onclick = function(){ els.studio.classList.add("fullscreen"); };
+  els.exitFsBtn.onclick = function(){ els.studio.classList.remove("fullscreen"); };
+
+  els.themeToggle.onclick = function(){
+    var root = document.documentElement;
+    var cur = root.getAttribute("data-theme");
+    if (cur === "dark"){ root.setAttribute("data-theme","light"); }
+    else if (cur === "light"){ root.removeAttribute("data-theme"); }
+    else { root.setAttribute("data-theme","dark"); }
+  };
+
+  // ---------------- init ----------------
+  renderParticipants();
+  renderCueList();
+  renderPhoneIdle();
+  syncJsonBox();
+})();
+</script>
+</body>
+</html>
