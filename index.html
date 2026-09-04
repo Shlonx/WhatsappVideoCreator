@@ -409,9 +409,19 @@
     .dot{animation:none; opacity:.7;}
     .rec-pill.live .rec-dot{animation:none;}
   }
+
+  .cloud-status{
+    font-size:11px; color:var(--ink-muted); display:flex; align-items:center; gap:5px;
+  }
+  .cloud-status .cloud-dot{width:6px; height:6px; border-radius:50%; background:var(--ink-muted); flex:none;}
+  .cloud-status.synced .cloud-dot{background:var(--accent);}
+  .cloud-status.saving .cloud-dot{background:var(--accent); animation:pulse 1s ease-in-out infinite;}
+  .cloud-status.error .cloud-dot{background:var(--rec);}
 </style>
 </head>
 <body>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
 <div class="topbar">
   <div class="brand">
@@ -421,7 +431,10 @@
       <p>כתבו את השיחה, הפעילו, צלמו מסך</p>
     </div>
   </div>
-  <button class="btn ghost small" id="themeToggle" type="button">מצב תצוגה</button>
+  <div style="display:flex; align-items:center; gap:14px;">
+    <span class="cloud-status" id="cloudStatus"><span class="cloud-dot"></span><span id="cloudStatusText">מקומי בלבד</span></span>
+    <button class="btn ghost small" id="themeToggle" type="button">מצב תצוגה</button>
+  </div>
 </div>
 
 <div class="layout">
@@ -523,6 +536,27 @@
 
   var STORAGE_KEY = "staged-chat-scenario-v1";
 
+  // Public by design: this is a static page with no server, so the anon key
+  // is necessarily visible in the page source. Row Level Security on the
+  // `scenario` table is what actually gates access, not secrecy of this key.
+  var SUPABASE_URL = "https://vqtbmnhrhjubpcltotar.supabase.co";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxdGJtbmhyaGp1YnBjbHRvdGFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1MTU4MzIsImV4cCI6MjEwNDA5MTgzMn0.o0hLjW93_tuDdMLzwJBWXX8Tx2rLT6Okr1wzb6I1eXE";
+  var CLOUD_ROW_ID = 1;
+
+  // Created lazily (on first actual use, not at parse time) so a slow CDN
+  // load can never race the client's own script — every call site re-checks
+  // window.supabase rather than trusting a value cached too early.
+  var sb = null;
+  function getSupabase(){
+    if (sb) return sb;
+    try{
+      if (window.supabase && window.supabase.createClient){
+        sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+    }catch(e){ sb = null; }
+    return sb;
+  }
+
   var EMOJI_LIST = [
     "😀","😁","😂","🤣","😊","🙂","🙃","😉","😍","🥰",
     "😘","😜","🤪","😎","🥳","🤗","🤔","🙄","😴","😭",
@@ -567,6 +601,66 @@
   }
   function saveState(){
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+    scheduleCloudSave();
+  }
+
+  // ---------------- Cloud sync (Supabase) ----------------
+  // localStorage stays the instant local cache; this mirrors it to a single
+  // fixed row so the scenario survives a cleared browser and follows across
+  // devices. Debounced so rapid edits (e.g. typing) don't spam the API.
+
+  var cloudSaveTimer = null;
+
+  function setCloudStatus(kind, text){
+    if (!els.cloudStatus) return;
+    els.cloudStatus.className = "cloud-status" + (kind ? " " + kind : "");
+    els.cloudStatusText.textContent = text;
+  }
+
+  function scheduleCloudSave(){
+    if (!getSupabase()) return;
+    setCloudStatus("saving", "שומר בענן...");
+    if (cloudSaveTimer){ clearTimeout(cloudSaveTimer); }
+    cloudSaveTimer = setTimeout(pushToCloud, 800);
+  }
+
+  function pushToCloud(){
+    cloudSaveTimer = null;
+    var client = getSupabase();
+    if (!client) return;
+    client.from("scenario")
+      .upsert({ id: CLOUD_ROW_ID, data: state, updated_at: new Date().toISOString() })
+      .then(function(res){
+        if (res.error){ setCloudStatus("error", "שגיאת סנכרון"); }
+        else { setCloudStatus("synced", "מסונכרן"); }
+      })
+      .catch(function(){ setCloudStatus("error", "שגיאת סנכרון"); });
+  }
+
+  function loadCloudState(attempt){
+    attempt = attempt || 0;
+    var client = getSupabase();
+    if (!client){
+      // Only relevant here: this runs once at page load, right as the CDN
+      // script may still be fetching on a slow connection. Later calls
+      // (from actual edits) have had plenty of time and don't need this.
+      if (attempt < 4){ setTimeout(function(){ loadCloudState(attempt + 1); }, 500); return; }
+      setCloudStatus("", "מקומי בלבד");
+      return;
+    }
+    setCloudStatus("saving", "טוען מהענן...");
+    client.from("scenario").select("data").eq("id", CLOUD_ROW_ID).maybeSingle()
+      .then(function(res){
+        if (res.error){ setCloudStatus("error", "אין חיבור לענן"); return; }
+        var cloudData = res.data && res.data.data;
+        if (cloudData && Array.isArray(cloudData.participants) && Array.isArray(cloudData.cues)){
+          state = cloudData;
+          try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+          sync();
+        }
+        setCloudStatus("synced", "מסונכרן");
+      })
+      .catch(function(){ setCloudStatus("error", "אין חיבור לענן"); });
   }
 
   function byId(id){ return state.participants.find(function(p){ return p.id === id; }); }
@@ -603,7 +697,9 @@
     recPill: document.getElementById("recPill"),
     recText: document.getElementById("recText"),
     statusTime: document.getElementById("statusTime"),
-    themeToggle: document.getElementById("themeToggle")
+    themeToggle: document.getElementById("themeToggle"),
+    cloudStatus: document.getElementById("cloudStatus"),
+    cloudStatusText: document.getElementById("cloudStatusText")
   };
 
   function initial(name){ return (name || "?").trim().charAt(0).toUpperCase(); }
@@ -1528,6 +1624,7 @@
   renderCueList();
   renderPhoneIdle();
   syncJsonBox();
+  loadCloudState();
 })();
 </script>
 </body>
