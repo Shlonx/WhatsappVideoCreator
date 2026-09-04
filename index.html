@@ -193,6 +193,20 @@
   }
   .cue-media-preview .media-name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:140px;}
 
+  .emoji-btn-wrap{position:relative; display:inline-flex;}
+  .emoji-picker{
+    position:absolute; z-index:10; top:calc(100% + 6px); right:0;
+    width:224px; max-height:180px; overflow-y:auto;
+    background:var(--panel-2); border:1px solid var(--border); border-radius:10px;
+    box-shadow:var(--shadow); padding:8px;
+    display:grid; grid-template-columns:repeat(7, 1fr); gap:2px;
+  }
+  .emoji-picker button{
+    background:none; border:none; cursor:pointer; font-size:18px; line-height:1;
+    padding:5px 0; border-radius:6px; display:flex; align-items:center; justify-content:center;
+  }
+  .emoji-picker button:hover{background:var(--panel);}
+
   .add-cue{width:100%; justify-content:center; margin-top:12px; border-style:dashed;}
 
   details.io summary{
@@ -505,6 +519,19 @@
 
   var STORAGE_KEY = "staged-chat-scenario-v1";
 
+  var EMOJI_LIST = [
+    "😀","😁","😂","🤣","😊","🙂","🙃","😉","😍","🥰",
+    "😘","😜","🤪","😎","🥳","🤗","🤔","🙄","😴","😭",
+    "😢","😡","🤬","😱","😳","🥺","😅","😬","🤯","😇",
+    "👍","👎","👏","🙏","💪","🤝","👋","✌️","🤞","🤙",
+    "👌","✋","🤟","💅","👀","🧠","❤️","🧡","💛","💚",
+    "💙","💜","🖤","🤍","💔","💕","💖","💗","🔥","✨",
+    "🎉","🎊","🎂","🎁","⭐","💯","✅","❌","❓","❗",
+    "💤","☕","🍕","🍔","🍺","🍷","🍰","🍩","🚗","✈️",
+    "🚀","🏠","📱","⏰","📸","🎵","🎧","⚽","🏖️","🌙",
+    "☀️","🌧️","❄️","🌈","💐","🎈"
+  ];
+
   var defaultState = {
     chatName: "טיול שבת",
     isGroup: true,
@@ -701,6 +728,7 @@
       attachBtn.textContent = "📎 צירוף תמונה/וידאו";
       attachBtn.onclick = function(){ fileInput.click(); };
 
+      mediaRow.appendChild(buildEmojiButton(text, cue));
       mediaRow.appendChild(attachBtn);
       mediaRow.appendChild(fileInput);
 
@@ -765,6 +793,76 @@
     i.oninput = function(){ onChange(parseInt(i.value,10) || 0); };
     f.appendChild(l); f.appendChild(i);
     return f;
+  }
+
+  var openEmojiWrap = null;
+  document.addEventListener("click", function(e){
+    if (openEmojiWrap && !openEmojiWrap.contains(e.target)){
+      closeEmojiPicker();
+    }
+  });
+  function closeEmojiPicker(){
+    if (openEmojiWrap){
+      var p = openEmojiWrap.querySelector(".emoji-picker");
+      if (p){ p.style.display = "none"; }
+    }
+    openEmojiWrap = null;
+  }
+
+  // Inserts at the textarea's cursor position (captured when the picker
+  // opens, since opening it moves focus away from the textarea) and keeps
+  // the picker open so several emoji can be added in a row.
+  function buildEmojiButton(textarea, cue){
+    var wrap = document.createElement("span");
+    wrap.className = "emoji-btn-wrap";
+
+    var toggleBtn = document.createElement("button");
+    toggleBtn.className = "btn small"; toggleBtn.type = "button";
+    toggleBtn.textContent = "😊";
+    toggleBtn.title = "הוספת אימוג׳י";
+
+    var picker = document.createElement("div");
+    picker.className = "emoji-picker";
+    picker.style.display = "none";
+
+    var savedSelection = { start: (cue.text || "").length, end: (cue.text || "").length };
+
+    EMOJI_LIST.forEach(function(emoji){
+      var eBtn = document.createElement("button");
+      eBtn.type = "button";
+      eBtn.textContent = emoji;
+      eBtn.onclick = function(){
+        var val = textarea.value;
+        var start = Math.min(savedSelection.start, val.length);
+        var end = Math.min(savedSelection.end, val.length);
+        var newVal = val.slice(0, start) + emoji + val.slice(end);
+        textarea.value = newVal;
+        cue.text = newVal;
+        saveState();
+        syncJsonBox();
+        var newPos = start + emoji.length;
+        textarea.focus();
+        textarea.setSelectionRange(newPos, newPos);
+        savedSelection.start = newPos;
+        savedSelection.end = newPos;
+      };
+      picker.appendChild(eBtn);
+    });
+
+    toggleBtn.onclick = function(){
+      var wasOpen = picker.style.display === "grid";
+      closeEmojiPicker();
+      if (!wasOpen){
+        savedSelection.start = textarea.selectionStart != null ? textarea.selectionStart : textarea.value.length;
+        savedSelection.end = textarea.selectionEnd != null ? textarea.selectionEnd : textarea.value.length;
+        picker.style.display = "grid";
+        openEmojiWrap = wrap;
+      }
+    };
+
+    wrap.appendChild(toggleBtn);
+    wrap.appendChild(picker);
+    return wrap;
   }
 
   function moveCue(idx, dir){
