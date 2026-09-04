@@ -313,10 +313,20 @@
     display:flex; align-items:center; justify-content:center; padding:22px;
   }
   .lightbox img, .lightbox video{max-width:100%; max-height:100%; border-radius:4px;}
-  .lightbox .lb-close{
+
+  /* Auto-playing video takeover: scales the clip up to the largest size its
+     own aspect ratio allows within the phone screen — edge-to-edge on
+     whichever axis the ratio permits, no cropping or distortion. */
+  .video-takeover{
+    position:absolute; inset:0; z-index:6; background:#000;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .video-takeover video{max-width:100%; max-height:100%; display:block;}
+
+  .lightbox .lb-close, .video-takeover .lb-close{
     position:absolute; top:10px; right:10px; width:30px; height:30px; border-radius:50%;
     background:rgba(255,255,255,.16); color:#fff; border:none; font-size:15px; cursor:pointer;
-    display:flex; align-items:center; justify-content:center; padding:0;
+    display:flex; align-items:center; justify-content:center; padding:0; z-index:1;
   }
 
   .typing-status{color:#8fe6d1;}
@@ -837,6 +847,7 @@
     els.waChat.innerHTML = "";
     typingBubbleEl = null;
     closeLightbox();
+    closeVideoTakeover();
     resetComposeBar();
   }
 
@@ -922,18 +933,19 @@
     var bubble = document.createElement("div");
     bubble.className = "bubble " + (out ? "out" : "in") + (cue.mediaData ? " has-media" : "");
 
-    var inlineVideoEl = null;
-
     if (cue.mediaData){
       var mediaWrap = document.createElement("div");
       mediaWrap.className = "media-wrap";
       var mediaEl;
       if (cue.mediaType === "video"){
+        // Stays paused (first frame only) — the actual playback happens in
+        // the full-screen takeover; tapping this thumbnail re-opens it with
+        // sound and controls via openLightbox.
         mediaEl = document.createElement("video");
         mediaEl.src = cue.mediaData;
         mediaEl.muted = true;
         mediaEl.playsInline = true;
-        mediaEl.preload = "auto";
+        mediaEl.preload = "metadata";
         var badge = document.createElement("div");
         badge.className = "play-badge";
         var badgeInner = document.createElement("span");
@@ -941,10 +953,6 @@
         badge.appendChild(badgeInner);
         mediaWrap.appendChild(mediaEl);
         mediaWrap.appendChild(badge);
-        mediaEl.addEventListener("play", function(){ badge.style.display = "none"; });
-        mediaEl.addEventListener("pause", function(){ badge.style.display = ""; });
-        mediaEl.addEventListener("ended", function(){ badge.style.display = ""; });
-        inlineVideoEl = mediaEl;
       } else {
         mediaEl = document.createElement("img");
         mediaEl.src = cue.mediaData;
@@ -983,8 +991,6 @@
       setTimeout(function(){ ticks.textContent = "✓✓"; }, 450);
       setTimeout(function(){ ticks.textContent = "✓✓"; ticks.classList.add("read"); }, 1500);
     }
-
-    return inlineVideoEl;
   }
 
   var lightboxEl = null;
@@ -1059,7 +1065,8 @@
     raf: null,
     composeTimer: null,
     autoSendTimer: null,
-    videoWaitCancel: null
+    videoWaitCancel: null,
+    videoWaitSkip: null
   };
 
   function buildTimeline(){
@@ -1131,20 +1138,63 @@
   function enterVideoGate(cue){
     clearHeaderTyping();
     hideTypingBubble();
-    var videoEl = appendBubble(cue);
+    appendBubble(cue);
     pausePlaying();
     els.playBtn.disabled = true;
     els.recPill.classList.remove("live");
     els.recPill.classList.add("awaiting");
     els.recText.textContent = "מנגן סרטון...";
-    if (!videoEl){ exitVideoGate(); return; }
-    beginVideoWait(videoEl, exitVideoGate);
+    enterVideoTakeover(cue, exitVideoGate);
   }
 
   function exitVideoGate(){
     els.playBtn.disabled = false;
     els.recPill.classList.remove("awaiting");
     if (player.isPlaying){ resumePlaying(); }
+  }
+
+  // Full phone-screen playback shown the moment a video message lands —
+  // scaled to the largest size its own aspect ratio allows (square clips
+  // touch the side edges, portrait/vertical clips fill the whole screen),
+  // muted so autoplay is never blocked by the browser. Tapping the small
+  // chat-history thumbnail afterwards replays it with sound via openLightbox.
+  var videoTakeoverEl = null;
+
+  function enterVideoTakeover(cue, onFinish){
+    var overlay = document.createElement("div");
+    overlay.className = "video-takeover";
+
+    var closeBtn = document.createElement("button");
+    closeBtn.className = "lb-close";
+    closeBtn.type = "button";
+    closeBtn.textContent = "✕";
+    closeBtn.setAttribute("aria-label", "דילוג על הסרטון");
+    closeBtn.onclick = function(){ if (player.videoWaitSkip){ player.videoWaitSkip(); } };
+    overlay.appendChild(closeBtn);
+
+    var media = document.createElement("video");
+    media.src = cue.mediaData;
+    media.muted = true;
+    media.playsInline = true;
+    media.preload = "auto";
+    overlay.appendChild(media);
+
+    els.phoneScreen.appendChild(overlay);
+    videoTakeoverEl = overlay;
+
+    beginVideoWait(media, function(){
+      closeVideoTakeover();
+      onFinish();
+    });
+  }
+
+  function closeVideoTakeover(){
+    if (videoTakeoverEl && videoTakeoverEl.parentNode){
+      var vid = videoTakeoverEl.querySelector("video");
+      if (vid){ try{ vid.pause(); }catch(e){} }
+      videoTakeoverEl.parentNode.removeChild(videoTakeoverEl);
+    }
+    videoTakeoverEl = null;
   }
 
   // Holds the timeline/compose flow until the given <video> finishes (or
@@ -1167,13 +1217,16 @@
       videoEl.removeEventListener("ended", done);
       videoEl.removeEventListener("error", done);
       videoEl.removeEventListener("loadedmetadata", armSafetyFromDuration);
+      try{ videoEl.pause(); }catch(e){}
       player.videoWaitCancel = null;
+      player.videoWaitSkip = null;
       onFinish();
     }
     videoEl.addEventListener("ended", done);
     videoEl.addEventListener("error", done);
     videoEl.addEventListener("loadedmetadata", armSafetyFromDuration);
     armSafetyFromDuration();
+    player.videoWaitSkip = done;
     player.videoWaitCancel = function(){
       if (settled) return;
       settled = true;
@@ -1183,6 +1236,7 @@
       videoEl.removeEventListener("loadedmetadata", armSafetyFromDuration);
       try{ videoEl.pause(); }catch(e){}
       player.videoWaitCancel = null;
+      player.videoWaitSkip = null;
     };
     var playPromise = videoEl.play();
     if (playPromise && playPromise.catch){ playPromise.catch(done); }
@@ -1271,13 +1325,13 @@
     player.awaitingSend = false;
     player.pendingCue = null;
     els.sendBtn.classList.remove("active", "pressed");
-    var videoEl = appendBubble(cue);
+    appendBubble(cue);
     resetComposeBar();
-    if (videoEl){
+    if (cue.mediaType === "video" && cue.mediaData){
       // Own video messages hold the timeline the same way incoming ones do —
       // recPill/playBtn stay in the "busy" state already set by the compose gate.
       els.recText.textContent = "מנגן סרטון...";
-      beginVideoWait(videoEl, function(){
+      enterVideoTakeover(cue, function(){
         els.recPill.classList.remove("awaiting");
         els.playBtn.disabled = false;
         if (player.isPlaying){ resumePlaying(); }
