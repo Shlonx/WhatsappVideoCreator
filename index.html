@@ -182,6 +182,10 @@
   .cue-meta .field{min-width:110px;}
 
   .cue-media-row{display:flex; align-items:center; gap:8px; margin-top:8px;}
+  .visually-hidden{
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+    overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
   .cue-media-preview{
     display:flex; align-items:center; gap:6px; background:var(--panel); border:1px solid var(--border);
     border-radius:8px; padding:4px 8px 4px 4px; font-size:11.5px; color:var(--ink-muted); max-width:100%;
@@ -705,10 +709,12 @@
       var mediaRow = document.createElement("div");
       mediaRow.className = "cue-media-row";
 
+      var fileInputId = "cueFile_" + idx;
       var fileInput = document.createElement("input");
       fileInput.type = "file";
+      fileInput.id = fileInputId;
       fileInput.accept = "image/*,video/*";
-      fileInput.style.display = "none";
+      fileInput.className = "visually-hidden";
       fileInput.onchange = function(){
         var file = fileInput.files && fileInput.files[0];
         if (!file) return;
@@ -723,10 +729,13 @@
         reader.readAsDataURL(file);
       };
 
-      var attachBtn = document.createElement("button");
-      attachBtn.className = "btn small"; attachBtn.type = "button";
+      // A <label for=...> associated with the input, rather than a button
+      // that proxies a JS .click() — mobile Safari/Chrome can silently
+      // refuse a synthetic click on a hidden file input, but native label
+      // activation always opens the picker.
+      var attachBtn = document.createElement("label");
+      attachBtn.className = "btn small"; attachBtn.htmlFor = fileInputId;
       attachBtn.textContent = "📎 צירוף תמונה/וידאו";
-      attachBtn.onclick = function(){ fileInput.click(); };
 
       mediaRow.appendChild(buildEmojiButton(text, cue));
       mediaRow.appendChild(attachBtn);
